@@ -3,8 +3,9 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
-	"math/rand"
+	"log"
 	"net/http"
 	"time"
 
@@ -19,6 +20,11 @@ const (
 type Coord struct {
 	x int
 	y int
+}
+
+type ClientMessage struct {
+	Type string
+	Data interface{}
 }
 
 var offsets = []Coord{
@@ -66,8 +72,45 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			fmt.Println("Read error:", err)
 			return
 		}
-		fmt.Printf("Received: %s\n", message)
-		conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+
+		var msg ClientMessage
+		err = json.Unmarshal(message, &msg)
+		if err != nil {
+			log.Printf("Error unmarshalling JSON: %v", err)
+			continue
+		}
+
+		if msg.Type == "points" {
+			setJSONPoints(msg.Data)
+
+			err = conn.WriteMessage(websocket.TextMessage, []byte("Points recieved"))
+			if err != nil {
+				fmt.Println("Error writing:", err)
+				return
+			}
+		} else {
+			err = conn.WriteMessage(websocket.TextMessage, []byte("Invalid request"))
+			if err != nil {
+				fmt.Println("Error writing:", err)
+				return
+			}
+		}
+	}
+}
+
+func setJSONPoints(data interface{}) {
+	points, ok := data.([]interface{})
+
+	if ok {
+		for _, p := range points {
+			pointMap, ok := p.(map[string]interface{})
+			if ok {
+				x, _ := pointMap["x"].(float64)
+				y, _ := pointMap["y"].(float64)
+				idx := int(x*surfaceWidth + y)
+				gameState[idx] = true
+			}
+		}
 	}
 }
 
@@ -109,32 +152,33 @@ func sendFullSync() {
 func reset() {
 	for i := 0; i < surfaceHeight; i++ {
 		for j := 0; j < surfaceWidth; j++ {
-			idx := (j*surfaceHeight + i)
-			if rand.Int()%20 == 0 {
-				gameState[idx] = true
-			} else {
-				gameState[idx] = false
-			}
+			idx := (i*surfaceWidth + j)
+			//if rand.Int()%20 == 0 {
+			//	gameState[idx] = true
+			//} else {
+			gameState[idx] = false
+			//}
 		}
 	}
 }
 
 func update() {
-	for i := 0; i < surfaceHeight; i++ {
-		for j := 0; j < surfaceWidth; j++ {
-			idx := (i*surfaceWidth + j)
+	var newState = make([]bool, surfaceWidth*surfaceHeight)
+	for i := 0; i < surfaceWidth; i++ {
+		for j := 0; j < surfaceHeight; j++ {
+			idx := (j*surfaceWidth + i)
 			alive := gameState[idx]
 			neighbors := 0
 
 			for _, c := range offsets {
-				nx := j + c.x
+				nx := i + c.x
 				if nx < 0 {
 					nx += surfaceWidth
 				} else if nx >= surfaceWidth {
 					nx -= surfaceWidth
 				}
 
-				ny := i + c.y
+				ny := j + c.y
 				if ny < 0 {
 					ny += surfaceHeight
 				} else if ny >= surfaceHeight {
@@ -148,15 +192,19 @@ func update() {
 
 			if alive {
 				if neighbors < 2 || neighbors > 3 {
-					gameState[idx] = false
+					alive = false
 				}
 			} else {
 				if neighbors == 3 {
-					gameState[idx] = true
+					alive = true
 				}
 			}
+
+			newState[idx] = alive
 		}
 	}
+
+	copy(gameState, newState)
 }
 
 func main() {
@@ -165,7 +213,7 @@ func main() {
 
 	updateTick := time.NewTicker(50 * time.Millisecond)
 	syncTick := time.NewTicker(50 * time.Millisecond)
-	resetTick := time.NewTicker(60 * time.Second)
+	resetTick := time.NewTicker(120 * time.Second)
 	go func() {
 		for {
 			select {

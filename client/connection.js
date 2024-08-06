@@ -1,6 +1,7 @@
 import { setData } from "./app.js";
 
 let socket;
+let pingInterval;
 
 connectToServer("", window.location.hostname + ":8080");
 
@@ -12,16 +13,18 @@ export function connectToServer(rn, url) {
 
   socket.onopen = function (event) {
     console.log("WebSocket connection established.");
+    startHeartbeat();
   };
 
   socket.onclose = function (event) {
     console.log("WebSocket connection closed.");
+    stopHeartbeat();
   };
 
   socket.onmessage = function (event) {
     if (event.data instanceof ArrayBuffer) {
       handleBuffer(event.data);
-    } else {
+    } else if (event.data !== "pong") {
       console.log(event.data);
     }
   };
@@ -45,4 +48,29 @@ function closeWebSocket() {
       socket.close(code, reason);
     }
   }
+}
+
+export function sendPoints(points) {
+  if (socket !== undefined) {
+    const message = {
+      type: "points",
+      data: points,
+    };
+
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify(message));
+    }
+  }
+}
+
+function startHeartbeat() {
+  pingInterval = setInterval(() => {
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send("ping");
+    }
+  }, 30000);
+}
+
+function stopHeartbeat() {
+  clearInterval(pingInterval);
 }
