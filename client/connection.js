@@ -3,7 +3,7 @@ import { setData } from "./app.js";
 let socket;
 let pingInterval;
 
-connectToServer("", window.location.hostname + ":8080");
+connectToServer("", window.location.hostname + ":5501");
 
 export function connectToServer(rn, url) {
   socket = new WebSocket("ws://" + url);

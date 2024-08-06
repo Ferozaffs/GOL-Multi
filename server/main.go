@@ -228,7 +228,7 @@ func main() {
 	}()
 
 	http.HandleFunc("/", handleWebSocket)
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	if err := http.ListenAndServe(":5501", nil); err != nil {
 		fmt.Println(err)
 	}
 }
