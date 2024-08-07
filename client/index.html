@@ -6,22 +6,17 @@
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
     <title>Game of life</title>
-    <link rel="stylesheet" type="text/css" href="base.css">
+    <link rel="stylesheet"href="output.css">
     <link rel="icon" href="assets/icon.png" type="image/x-icon">
     <link rel="shortcut icon" href="assets/icon.png" type="image/x-icon">
     <script type="module" src="app.js"></script>
     <script type="module" src="connection.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
-<body class="bg-slate-600">
-    <div class="flex flex-col items-center py-10">
-        <div id="view" class="w-[56rem] h-[56rem] border-2 border-slate-900">
-
-        </div>
+<body class="min-h-screen bg-gradient-to-t from-slate-700 to-slate-500">
+    <div class="flex flex-col items-center lg:py-10 sm:py-2">
+        <div id="view" class="md:w-[56rem] md:h-[56rem] sm:w-[25rem] sm:h-[25rem] border-double border-8 border-slate-800"></div>
     </div>
-
-
 </body>
 
 </html>

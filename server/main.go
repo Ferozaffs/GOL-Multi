@@ -84,6 +84,9 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 	conn.WriteMessage(websocket.BinaryMessage, buf.Bytes())
 
+	// Rate limit: 500 ms
+	var lastProcessedTime time.Time
+
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
@@ -91,26 +94,20 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		var msg ClientMessage
-		err = json.Unmarshal(message, &msg)
-		if err != nil {
-			log.Printf("Error unmarshalling JSON: %v", err)
-			continue
-		}
+		now := time.Now()
 
-		if msg.Type == "points" {
-			setJSONPoints(msg.Data)
+		if now.Sub(lastProcessedTime) >= 500*time.Millisecond {
+			lastProcessedTime = now
 
-			err = conn.WriteMessage(websocket.TextMessage, []byte("Points recieved"))
+			var msg ClientMessage
+			err = json.Unmarshal(message, &msg)
 			if err != nil {
-				fmt.Println("Error writing:", err)
-				return
+				log.Printf("Error unmarshalling JSON: %v", err)
+				continue
 			}
-		} else {
-			err = conn.WriteMessage(websocket.TextMessage, []byte("Invalid request"))
-			if err != nil {
-				fmt.Println("Error writing:", err)
-				return
+
+			if msg.Type == "points" {
+				setJSONPoints(msg.Data)
 			}
 		}
 	}
