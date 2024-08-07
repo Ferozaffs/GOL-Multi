@@ -1,4 +1,4 @@
-import { setData } from "./app.js";
+import { fullSync, sync } from "./app.js";
 
 let socket;
 let pingInterval;
@@ -31,9 +31,13 @@ export function connectToServer(rn, url) {
 }
 
 function handleBuffer(buffer) {
-  const array = new Uint32Array(buffer);
-
-  setData(array);
+  const array = new Uint8Array(buffer);
+  const type = array[0];
+  if (type === 0) {
+    fullSync(array);
+  } else if (type === 1) {
+    sync(array);
+  }
 }
 
 function closeWebSocket() {

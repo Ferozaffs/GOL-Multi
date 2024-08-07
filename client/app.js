@@ -144,26 +144,37 @@ function sendData() {
   sendPoints(pointsToSend);
 }
 
-export function setData(array) {
+export function sync(array) {
+  for (let i = 1; i < array.length; i += 3) {
+    const point = points[array[i]][array[i + 1]];
+    tintPoint(point, array[i + 2] > 0);
+  }
+}
+
+export function fullSync(array) {
   let idx = 0;
-  for (let i = 0; i < array.length; i++) {
-    for (let j = 0; j < 32; j++) {
-      const val = (array[i] >> j) & 0x1;
+  for (let i = 1; i < array.length; i++) {
+    for (let j = 0; j < 8; j++) {
+      const alive = (array[i] >> j) & 0x1;
 
       const point = points[Math.floor(idx / rows)][idx % cols];
-      const asset = point.asset;
-      if (val > 0) {
-        asset.tint = 0x111111;
-        point.active = true;
-      } else {
-        asset.tint = 0xbbbbbb;
-      }
-
-      if (point.pending) {
-        point.asset.tint = point.asset.tint * 0.1 + pendingTint;
-      }
+      tintPoint(point, alive);
 
       idx++;
     }
+  }
+}
+
+function tintPoint(point, alive) {
+  const asset = point.asset;
+  if (alive > 0) {
+    asset.tint = 0x111111;
+    point.active = true;
+  } else {
+    asset.tint = 0xbbbbbb;
+  }
+
+  if (point.pending) {
+    point.asset.tint = point.asset.tint * 0.1 + pendingTint;
   }
 }

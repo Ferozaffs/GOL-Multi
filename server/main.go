@@ -17,6 +17,19 @@ const (
 	surfaceHeight = 128
 )
 
+type Point struct {
+	Alive   bool
+	Changed bool
+	Row     int
+	Col     int
+}
+
+type PointData struct {
+	Row   uint8
+	Col   uint8
+	Alive uint8
+}
+
 type Coord struct {
 	x int
 	y int
@@ -38,7 +51,7 @@ var offsets = []Coord{
 	{x: 1, y: 1},
 }
 
-var gameState = make([]bool, surfaceWidth*surfaceHeight)
+var gameState = make([]Point, surfaceWidth*surfaceHeight)
 
 var connections = []*websocket.Conn{}
 
@@ -60,11 +73,16 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	connections = append(connections, conn)
 
-	err = conn.WriteMessage(websocket.TextMessage, []byte("Server connection response"))
+	buf, err := getFullSyncBuffer()
 	if err != nil {
-		fmt.Println("Error writing:", err)
+		err = conn.WriteMessage(websocket.TextMessage, []byte("Server error"))
+		if err != nil {
+			fmt.Println("Error writing:", err)
+			return
+		}
 		return
 	}
+	conn.WriteMessage(websocket.BinaryMessage, buf.Bytes())
 
 	for {
 		_, message, err := conn.ReadMessage()
@@ -108,17 +126,18 @@ func setJSONPoints(data interface{}) {
 				x, _ := pointMap["x"].(float64)
 				y, _ := pointMap["y"].(float64)
 				idx := int(x*surfaceWidth + y)
-				gameState[idx] = true
+				gameState[idx].Alive = true
+				gameState[idx].Changed = true
 			}
 		}
 	}
 }
 
-func boolArrayToPackedUint(boolArray []bool) []uint64 {
-	size := (len(boolArray) + 63) / 64
+func pointArrayToPackedUint(array []Point) []uint64 {
+	size := (len(array) + 63) / 64
 	packed := make([]uint64, size)
-	for i, v := range boolArray {
-		if v {
+	for i, p := range array {
+		if p.Alive {
 			idx := i / 64
 			bit := i % 64
 			packed[idx] |= (1 << bit)
@@ -127,14 +146,71 @@ func boolArrayToPackedUint(boolArray []bool) []uint64 {
 	return packed
 }
 
-func sendFullSync() {
-	packed := boolArrayToPackedUint(gameState)
+func getFullSyncBuffer() (bytes.Buffer, error) {
+	packed := pointArrayToPackedUint(gameState)
 	var buf bytes.Buffer
+	msgType := uint8(0)
+	binary.Write(&buf, binary.LittleEndian, msgType)
+
 	for _, value := range packed {
 		err := binary.Write(&buf, binary.LittleEndian, value)
 		if err != nil {
 			fmt.Println("binary.Write failed:", err)
-			return
+			return buf, err
+		}
+	}
+
+	return buf, nil
+}
+
+func sendFullSync() {
+	buf, err := getFullSyncBuffer()
+	if err != nil {
+		return
+	}
+
+	activeConnections := []*websocket.Conn{}
+	for _, c := range connections {
+		err := c.WriteMessage(websocket.BinaryMessage, buf.Bytes())
+		if err == nil {
+			activeConnections = append(activeConnections, c)
+		}
+	}
+
+	connections = activeConnections
+
+	for i := range gameState {
+		gameState[i].Changed = false
+	}
+}
+
+func sendChanged() {
+	var buf bytes.Buffer
+	msgType := uint8(1)
+	err := binary.Write(&buf, binary.LittleEndian, msgType)
+	if err != nil {
+		fmt.Println("binary.Write failed:", err)
+		return
+	}
+
+	for i, p := range gameState {
+		if p.Changed {
+			pointData := PointData{}
+			pointData.Col = uint8(p.Col)
+			pointData.Row = uint8(p.Row)
+			if p.Alive {
+				pointData.Alive = uint8(1)
+			} else {
+				pointData.Alive = uint8(0)
+			}
+
+			gameState[i].Changed = false
+
+			err := binary.Write(&buf, binary.LittleEndian, pointData)
+			if err != nil {
+				fmt.Println("binary.Write failed:", err)
+				return
+			}
 		}
 	}
 
@@ -150,24 +226,18 @@ func sendFullSync() {
 }
 
 func reset() {
-	for i := 0; i < surfaceHeight; i++ {
-		for j := 0; j < surfaceWidth; j++ {
-			idx := (i*surfaceWidth + j)
-			//if rand.Int()%20 == 0 {
-			//	gameState[idx] = true
-			//} else {
-			gameState[idx] = false
-			//}
-		}
+	for i := range gameState {
+		gameState[i].Alive = false
+		gameState[i].Changed = true
 	}
 }
 
 func update() {
-	var newState = make([]bool, surfaceWidth*surfaceHeight)
+	var newState = make([]Point, surfaceWidth*surfaceHeight)
 	for i := 0; i < surfaceWidth; i++ {
 		for j := 0; j < surfaceHeight; j++ {
 			idx := (j*surfaceWidth + i)
-			alive := gameState[idx]
+			alive := gameState[idx].Alive
 			neighbors := 0
 
 			for _, c := range offsets {
@@ -185,26 +255,31 @@ func update() {
 					ny -= surfaceHeight
 				}
 
-				if gameState[(ny*surfaceWidth + nx)] {
+				if gameState[(ny*surfaceWidth + nx)].Alive {
 					neighbors++
 				}
 			}
 
+			changed := gameState[idx].Changed
 			if alive {
 				if neighbors < 2 || neighbors > 3 {
 					alive = false
+					changed = true
 				}
 			} else {
 				if neighbors == 3 {
 					alive = true
+					changed = true
 				}
 			}
 
-			newState[idx] = alive
+			newState[idx] = Point{alive, changed, j, i}
 		}
 	}
 
 	copy(gameState, newState)
+
+	sendChanged()
 }
 
 func main() {
@@ -212,7 +287,7 @@ func main() {
 	reset()
 
 	updateTick := time.NewTicker(50 * time.Millisecond)
-	syncTick := time.NewTicker(50 * time.Millisecond)
+	syncTick := time.NewTicker(10 * time.Second)
 	resetTick := time.NewTicker(120 * time.Second)
 	go func() {
 		for {
