@@ -12,6 +12,9 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const isPvP = true
+const numColor = 16
+
 const (
 	surfaceWidth  = 128
 	surfaceHeight = 128
@@ -22,12 +25,13 @@ type Point struct {
 	Changed bool
 	Row     int
 	Col     int
+	ColorId int
 }
 
 type PointData struct {
-	Row   uint8
-	Col   uint8
-	Alive uint8
+	Row  uint8
+	Col  uint8
+	Data uint8
 }
 
 type Coord struct {
@@ -38,6 +42,11 @@ type Coord struct {
 type ClientMessage struct {
 	Type string
 	Data interface{}
+}
+
+type Client struct {
+	Connection *websocket.Conn
+	ColorId    int
 }
 
 var offsets = []Coord{
@@ -53,7 +62,8 @@ var offsets = []Coord{
 
 var gameState = make([]Point, surfaceWidth*surfaceHeight)
 
-var connections = []*websocket.Conn{}
+var connections = []Client{}
+var currentColorId = 0
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -71,7 +81,15 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	connections = append(connections, conn)
+	colorId := currentColorId
+	connections = append(connections, Client{conn, colorId})
+
+	if isPvP {
+		currentColorId++
+		if currentColorId > numColor {
+			currentColorId = 1
+		}
+	}
 
 	buf, err := getFullSyncBuffer()
 	if err != nil {
@@ -107,13 +125,13 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if msg.Type == "points" {
-				setJSONPoints(msg.Data)
+				setJSONPoints(colorId, msg.Data)
 			}
 		}
 	}
 }
 
-func setJSONPoints(data interface{}) {
+func setJSONPoints(colorId int, data interface{}) {
 	points, ok := data.([]interface{})
 
 	if ok {
@@ -125,19 +143,19 @@ func setJSONPoints(data interface{}) {
 				idx := int(x*surfaceWidth + y)
 				gameState[idx].Alive = true
 				gameState[idx].Changed = true
+				gameState[idx].ColorId = colorId
 			}
 		}
 	}
 }
 
-func pointArrayToPackedUint(array []Point) []uint64 {
-	size := (len(array) + 63) / 64
-	packed := make([]uint64, size)
+func pointArrayToPackedUint(array []Point) []uint8 {
+	size := len(array)
+	packed := make([]uint8, size)
 	for i, p := range array {
 		if p.Alive {
-			idx := i / 64
-			bit := i % 64
-			packed[idx] |= (1 << bit)
+			packed[i] = 1
+			packed[i] |= (1 << p.ColorId)
 		}
 	}
 	return packed
@@ -166,9 +184,9 @@ func sendFullSync() {
 		return
 	}
 
-	activeConnections := []*websocket.Conn{}
+	activeConnections := []Client{}
 	for _, c := range connections {
-		err := c.WriteMessage(websocket.BinaryMessage, buf.Bytes())
+		err := c.Connection.WriteMessage(websocket.BinaryMessage, buf.Bytes())
 		if err == nil {
 			activeConnections = append(activeConnections, c)
 		}
@@ -190,15 +208,18 @@ func sendChanged() {
 		return
 	}
 
+	numChanged := 0
 	for i, p := range gameState {
 		if p.Changed {
 			pointData := PointData{}
 			pointData.Col = uint8(p.Col)
 			pointData.Row = uint8(p.Row)
 			if p.Alive {
-				pointData.Alive = uint8(1)
+				pd := 1
+				pd |= (p.ColorId << 1)
+				pointData.Data = uint8(pd)
 			} else {
-				pointData.Alive = uint8(0)
+				pointData.Data = uint8(0)
 			}
 
 			gameState[i].Changed = false
@@ -208,24 +229,29 @@ func sendChanged() {
 				fmt.Println("binary.Write failed:", err)
 				return
 			}
+
+			numChanged++
 		}
 	}
 
-	activeConnections := []*websocket.Conn{}
-	for _, c := range connections {
-		err := c.WriteMessage(websocket.BinaryMessage, buf.Bytes())
-		if err == nil {
-			activeConnections = append(activeConnections, c)
+	if numChanged != 0 {
+		activeConnections := []Client{}
+		for _, c := range connections {
+			err := c.Connection.WriteMessage(websocket.BinaryMessage, buf.Bytes())
+			if err == nil {
+				activeConnections = append(activeConnections, c)
+			}
 		}
-	}
 
-	connections = activeConnections
+		connections = activeConnections
+	}
 }
 
 func reset() {
 	for i := range gameState {
 		gameState[i].Alive = false
 		gameState[i].Changed = true
+		gameState[i].ColorId = 0
 	}
 }
 
@@ -236,6 +262,7 @@ func update() {
 			idx := (j*surfaceWidth + i)
 			alive := gameState[idx].Alive
 			neighbors := 0
+			neighborIds := make(map[int]int)
 
 			for _, c := range offsets {
 				nx := i + c.x
@@ -254,23 +281,42 @@ func update() {
 
 				if gameState[(ny*surfaceWidth + nx)].Alive {
 					neighbors++
+					neighborIds[gameState[(ny*surfaceWidth+nx)].ColorId]++
 				}
 			}
 
 			changed := gameState[idx].Changed
+			colorId := gameState[idx].ColorId
 			if alive {
 				if neighbors < 2 || neighbors > 3 {
 					alive = false
 					changed = true
+					colorId = 0
 				}
 			} else {
 				if neighbors == 3 {
 					alive = true
 					changed = true
+
+					var maxCount int
+					var maxIDs []int
+
+					for id, count := range neighborIds {
+						if count > maxCount {
+							maxCount = count
+							maxIDs = []int{id}
+						} else if count == maxCount {
+							maxIDs = append(maxIDs, id)
+						}
+					}
+
+					if len(maxIDs) == 1 {
+						colorId = maxIDs[0]
+					}
 				}
 			}
 
-			newState[idx] = Point{alive, changed, j, i}
+			newState[idx] = Point{alive, changed, j, i, colorId}
 		}
 	}
 
@@ -280,6 +326,9 @@ func update() {
 }
 
 func main() {
+	if isPvP {
+		currentColorId = 1
+	}
 	//Full sync routine
 	reset()
 
@@ -300,7 +349,7 @@ func main() {
 	}()
 
 	http.HandleFunc("/", handleWebSocket)
-	if err := http.ListenAndServe(":5501", nil); err != nil {
+	if err := http.ListenAndServe(":5502", nil); err != nil {
 		fmt.Println(err)
 	}
 }

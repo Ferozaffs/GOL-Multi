@@ -15,7 +15,7 @@ const rows = 128;
 const cols = 128;
 const padding = 0;
 const points = new Array(rows);
-const pendingTint = 0x00ffff;
+let color = [];
 
 (async () => {
   await init();
@@ -68,6 +68,28 @@ async function init() {
   app.stage.on("pointermove", updateInteraction);
   app.stage.on("pointerdown", activatePointer);
   app.stage.on("pointerup", deactivatePointer);
+
+  generateColors();
+}
+
+function generateColors() {
+  color[0] = 0x111111;
+  color[1] = 0xff0000;
+  color[2] = 0x00ff00;
+  color[3] = 0x0000ff;
+  color[4] = 0xffff00;
+  color[5] = 0xff00ff;
+  color[6] = 0x00ffff;
+  color[7] = 0xff7700;
+  color[8] = 0xff0077;
+  color[9] = 0x00ff77;
+  color[10] = 0x77ff00;
+  color[11] = 0x0077ff;
+  color[12] = 0x7700ff;
+  color[13] = 0x770000;
+  color[14] = 0x007700;
+  color[15] = 0x000077;
+  color[16] = 0x777700;
 }
 
 export async function updateData(json) {
@@ -113,13 +135,13 @@ function updateInteraction(e) {
     const point = points[row][col];
     if (point !== previousPoint) {
       if (point.pending) {
-        point.asset.tint = (point.asset.tint - pendingTint) * 10.0;
         point.pending = false;
       } else {
-        point.asset.tint = point.asset.tint * 0.1 + pendingTint;
         point.pending = true;
       }
     }
+
+    colorPoint(point, point.alive, point.color);
 
     previousPoint = point;
   }
@@ -134,9 +156,9 @@ function sendData() {
 
       if (point.pending) {
         pointsToSend.push({ x: i, y: j });
-
-        point.asset.tint = (point.asset.tint - pendingTint) * 10.0;
         point.pending = false;
+
+        colorPoint(point, point.alive, point.color);
       }
     }
   }
@@ -147,34 +169,46 @@ function sendData() {
 export function sync(array) {
   for (let i = 1; i < array.length; i += 3) {
     const point = points[array[i]][array[i + 1]];
-    tintPoint(point, array[i + 2] > 0);
+    const alive = array[i + 2] & 0x1;
+    const colorId = array[i + 2] >> 1;
+
+    colorPoint(point, alive, color[colorId]);
   }
 }
 
 export function fullSync(array) {
   let idx = 0;
   for (let i = 1; i < array.length; i++) {
-    for (let j = 0; j < 8; j++) {
-      const alive = (array[i] >> j) & 0x1;
+    const alive = array[i] & 0x1;
+    const colorId = array[i] >> 1;
 
-      const point = points[Math.floor(idx / rows)][idx % cols];
-      tintPoint(point, alive);
+    const point = points[Math.floor(idx / rows)][idx % cols];
+    colorPoint(point, alive, color[colorId]);
 
-      idx++;
-    }
+    idx++;
   }
 }
 
-function tintPoint(point, alive) {
+function colorPoint(point, alive, color) {
   const asset = point.asset;
   if (alive > 0) {
-    asset.tint = 0x111111;
+    point.color = color;
     point.active = true;
   } else {
-    asset.tint = 0xbbbbbb;
+    point.color = 0xbbbbbb;
   }
 
   if (point.pending) {
-    point.asset.tint = point.asset.tint * 0.1 + pendingTint;
+    let r = (point.color >> 16) & 0xff;
+    let g = (point.color >> 8) & 0xff;
+    let b = point.color & 0xff;
+
+    r = Math.min(255, Math.floor(r + (255 - r) * 2));
+    g = Math.min(255, Math.floor(g + (255 - g) * 2));
+    b = Math.min(255, Math.floor(b + (255 - b) * 2));
+
+    asset.tint = (r << 16) | (g << 8) | b;
+  } else {
+    asset.tint = point.color;
   }
 }
