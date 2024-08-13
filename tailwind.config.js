@@ -2,17 +2,17 @@
 module.exports = {
   content: ["./client/*.{html,js}"],
   theme: {
-    extend: {},
+    extend: {
+      gridTemplateColumns: {
+        16: "repeat(16, minmax(0, 1fr))",
+      },
+    },
     screens: {
       sm: "640px",
-      // => @media (min-width: 640px) { ... }
-
       md: "940px",
-      // => @media (min-width: 960px) { ... }
-
       lg: "1440px",
-      // => @media (min-width: 1440px) { ... }
+      land: { raw: "(orientation: landscape)" },
     },
   },
-  plugins: [],
+  plugins: [require("@tailwindcss/forms")],
 };
