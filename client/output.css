@@ -783,6 +783,10 @@ select {
   flex-direction: column;
 }
 
+.items-end {
+  align-items: flex-end;
+}
+
 .items-center {
   align-items: center;
 }
@@ -828,9 +832,18 @@ select {
   padding-bottom: 1.25rem;
 }
 
+.font-bold {
+  font-weight: 700;
+}
+
 .text-gray-600 {
   --tw-text-opacity: 1;
   color: rgb(75 85 99 / var(--tw-text-opacity));
+}
+
+.text-red-500 {
+  --tw-text-opacity: 1;
+  color: rgb(239 68 68 / var(--tw-text-opacity));
 }
 
 .focus\:ring-0:focus {
@@ -867,12 +880,57 @@ select {
     height: 1.25rem;
   }
 
+  .md\:h-\[36rem\] {
+    height: 36rem;
+  }
+
+  .md\:h-4 {
+    height: 1rem;
+  }
+
+  .md\:h-\[40rem\] {
+    height: 40rem;
+  }
+
+  .md\:h-\[44rem\] {
+    height: 44rem;
+  }
+
+  .md\:h-\[50rem\] {
+    height: 50rem;
+  }
+
   .md\:w-\[56rem\] {
     width: 56rem;
   }
 
   .md\:w-5 {
     width: 1.25rem;
+  }
+
+  .md\:w-\[36rem\] {
+    width: 36rem;
+  }
+
+  .md\:w-4 {
+    width: 1rem;
+  }
+
+  .md\:w-\[40rem\] {
+    width: 40rem;
+  }
+
+  .md\:w-\[44rem\] {
+    width: 44rem;
+  }
+
+  .md\:w-\[50rem\] {
+    width: 50rem;
+  }
+
+  .md\:py-10 {
+    padding-top: 2.5rem;
+    padding-bottom: 2.5rem;
   }
 }
 
@@ -924,6 +982,10 @@ select {
 
   .land\:flex-col {
     flex-direction: column;
+  }
+
+  .land\:flex-col-reverse {
+    flex-direction: column-reverse;
   }
 
   .land\:py-0 {

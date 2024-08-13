@@ -1,5 +1,6 @@
 import * as PIXI from "https://cdn.skypack.dev/pixi.js";
 import { sendPoints } from "./connection.js";
+import { getActiveCoordinates } from "./scratchpad.js";
 
 const app = new PIXI.Application();
 let initialized = false;
@@ -9,6 +10,8 @@ let pointerActive = false;
 let width = 0;
 let currentSize = 1.0;
 let previousPoint = undefined;
+let stampCooldown = 0.0;
+let cooldownElement;
 const updaterate = 1.0 / 1.0;
 
 const rows = 128;
@@ -24,6 +27,13 @@ let color = [];
 
   app.ticker.add((time) => {
     updateView();
+
+    stampCooldown = Math.max(0.0, stampCooldown - time.elapsedMS / 1000.0);
+    if (stampCooldown > 0.0) {
+      cooldownElement.textContent = "Cooldown: " + stampCooldown.toFixed(2);
+    } else {
+      cooldownElement.textContent = "";
+    }
 
     tickCounter += time.elapsedMS / 1000.0;
     if (tickCounter > updaterate) {
@@ -65,11 +75,13 @@ async function init() {
   }
 
   app.stage.interactive = true;
-  app.stage.on("pointermove", updateInteraction);
+  //app.stage.on("pointermove", updateInteraction_legacy);
   app.stage.on("pointerdown", activatePointer);
   app.stage.on("pointerup", deactivatePointer);
 
   generateColors();
+
+  cooldownElement = document.getElementById("cooldown");
 }
 
 function generateColors() {
@@ -117,17 +129,57 @@ function updateView() {
 
 function activatePointer(e) {
   pointerActive = true;
-  updateInteraction(e);
+  //updateInteraction_legacy(e);
 }
 function deactivatePointer(e) {
   if (pointerActive) {
+    stamp(e);
     sendData();
   }
   pointerActive = false;
   previousPoint = undefined;
 }
 
-function updateInteraction(e) {
+function stamp(e) {
+  if (pointerActive && stampCooldown === 0.0) {
+    const row = Math.floor(e.data.global.y / currentSize);
+    const col = Math.floor(e.data.global.x / currentSize);
+
+    const stampCoords = getActiveCoordinates();
+
+    let minCol = Infinity,
+      maxCol = -Infinity;
+    let minRow = Infinity,
+      maxRow = -Infinity;
+    stampCoords.forEach((coord) => {
+      if (coord.col < minCol) minCol = coord.col;
+      if (coord.col > maxCol) maxCol = coord.col;
+
+      if (coord.row < minRow) minRow = coord.row;
+      if (coord.row > maxRow) maxRow = coord.row;
+    });
+
+    const halfWidth = Math.floor((maxCol - minCol) / 2);
+    const halfHeight = Math.floor((maxRow - minRow) / 2);
+
+    stampCoords.forEach((coord) => {
+      let c = col - halfWidth + (coord.col - minCol);
+      let r = row - halfHeight + (coord.row - minRow);
+
+      if (c < 0) c += cols;
+      if (r < 0) r += rows;
+
+      const point = points[r % rows][c % rows];
+      if (point) {
+        point.pending = true;
+      }
+    });
+
+    stampCooldown = 2.0;
+  }
+}
+
+function updateInteraction_legacy(e) {
   if (pointerActive) {
     const row = Math.floor(e.data.global.y / currentSize);
     const col = Math.floor(e.data.global.x / currentSize);

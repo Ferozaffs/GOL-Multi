@@ -154,8 +154,9 @@ func pointArrayToPackedUint(array []Point) []uint8 {
 	packed := make([]uint8, size)
 	for i, p := range array {
 		if p.Alive {
-			packed[i] = 1
-			packed[i] |= (1 << p.ColorId)
+			pd := 1
+			pd |= (p.ColorId << 1)
+			packed[i] = uint8(pd)
 		}
 	}
 	return packed

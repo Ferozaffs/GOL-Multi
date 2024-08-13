@@ -14,14 +14,18 @@
 </head>
 
 <body class="flex flex-col items-center min-h-screen bg-gradient-to-t from-slate-700 to-slate-500">
-    <div class="land:flex land:flex-row lg:py-10 sm:py-2">
-        <div id="view" class="md:w-[56rem] md:h-[56rem] sm:w-[25rem] sm:h-[25rem] border-double border-8 border-slate-800"></div>
-        <div class="flex flex-row justify-between py-5 land:px-5  land:flex-col  land:py-0">
+    <div class="land:flex land:flex-row md:py-10 sm:py-2">
+        <div id="view" class="md:w-[50rem] md:h-[50rem] sm:w-[25rem] sm:h-[25rem] border-double border-8 border-slate-800"></div>
+        <div class="flex flex-row justify-between py-5 land:px-5 land:flex-col land:py-0">
             <div class="flex-1">
-               asdasdasdas
+               
             </div>
-            <div id="scratchpad" class="grid grid-cols-16 max-w-fit"></div>
-            <script src="scratchpad.js"></script>
+            <div class="flex flex-col land:flex-col-reverse">
+                <div id="scratchpad" class="flex-1 grid grid-cols-16 max-w-fit"></div>
+                <script src="scratchpad.js"></script>
+                <div id="cooldown" class="flex-2 text-red-500 font-bold"></div>
+            </div>
+
         </div>
 
     </div>
