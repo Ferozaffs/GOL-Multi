@@ -19,6 +19,9 @@ const cols = 128;
 const padding = 0;
 const points = new Array(rows);
 let color = [];
+let colorLabel = [];
+let colorTailwind = [];
+let scoreElements = [];
 
 (async () => {
   await init();
@@ -61,6 +64,7 @@ async function init() {
         col: j,
         active: false,
         pending: false,
+        colorId: 0,
         asset: PIXI.Sprite.from(PIXI.Texture.WHITE),
       };
 
@@ -82,6 +86,17 @@ async function init() {
   generateColors();
 
   cooldownElement = document.getElementById("cooldown");
+
+  const container = document.getElementById("score");
+  for (let i = 0; i <= 5; i++) {
+    const scoreElement = document.createElement("div");
+    scoreElement.id = `scoreElement-${i}`;
+    scoreElement.textContent = "";
+    scoreElement.className = "";
+    container.appendChild(scoreElement);
+
+    scoreElements.push(scoreElement);
+  }
 }
 
 function generateColors() {
@@ -102,6 +117,42 @@ function generateColors() {
   color[14] = 0x007700;
   color[15] = 0x000077;
   color[16] = 0x777700;
+
+  colorTailwind[0] = "text-[#111111]";
+  colorTailwind[1] = "text-[#ff0000]";
+  colorTailwind[2] = "text-[#00ff00]";
+  colorTailwind[3] = "text-[#0000ff]";
+  colorTailwind[4] = "text-[#ffff00]";
+  colorTailwind[5] = "text-[#ff00ff]";
+  colorTailwind[6] = "text-[#00ffff]";
+  colorTailwind[7] = "text-[#ff7700]";
+  colorTailwind[8] = "text-[#ff0077]";
+  colorTailwind[9] = "text-[#00ff77]";
+  colorTailwind[10] = "text-[#77ff00]";
+  colorTailwind[11] = "text-[#0077ff]";
+  colorTailwind[12] = "text-[#7700ff]";
+  colorTailwind[13] = "text-[#770000]";
+  colorTailwind[14] = "text-[#007700]";
+  colorTailwind[15] = "text-[#000077]";
+  colorTailwind[16] = "text-[#777700]";
+
+  colorLabel[0] = "BLACK";
+  colorLabel[1] = "RED";
+  colorLabel[2] = "GREEN";
+  colorLabel[3] = "BLUE";
+  colorLabel[4] = "YELLOW";
+  colorLabel[5] = "PURPLE";
+  colorLabel[6] = "CYAN";
+  colorLabel[7] = "ORANGE";
+  colorLabel[8] = "PINK";
+  colorLabel[9] = "TEAL";
+  colorLabel[10] = "LIME";
+  colorLabel[11] = "AQUA";
+  colorLabel[12] = "DARK PURPLE";
+  colorLabel[13] = "DARK RED";
+  colorLabel[14] = "DARK GREEN";
+  colorLabel[15] = "DARK BLUE";
+  colorLabel[16] = "DARK ORANGE";
 }
 
 export async function updateData(json) {
@@ -193,7 +244,7 @@ function updateInteraction_legacy(e) {
       }
     }
 
-    colorPoint(point, point.alive, point.color);
+    colorPoint(point, point.alive);
 
     previousPoint = point;
   }
@@ -210,7 +261,7 @@ function sendData() {
         pointsToSend.push({ x: i, y: j });
         point.pending = false;
 
-        colorPoint(point, point.alive, point.color);
+        colorPoint(point, point.alive);
       }
     }
   }
@@ -224,8 +275,11 @@ export function sync(array) {
     const alive = array[i + 2] & 0x1;
     const colorId = array[i + 2] >> 1;
 
-    colorPoint(point, alive, color[colorId]);
+    point.colorId = colorId;
+    colorPoint(point, alive);
   }
+
+  updateScore();
 }
 
 export function fullSync(array) {
@@ -235,19 +289,23 @@ export function fullSync(array) {
     const colorId = array[i] >> 1;
 
     const point = points[Math.floor(idx / rows)][idx % cols];
-    colorPoint(point, alive, color[colorId]);
+    point.colorId = colorId;
+    colorPoint(point, alive);
 
     idx++;
   }
+
+  updateScore();
 }
 
-function colorPoint(point, alive, color) {
+function colorPoint(point, alive) {
   const asset = point.asset;
   if (alive > 0) {
-    point.color = color;
+    point.color = color[point.colorId];
     point.active = true;
   } else {
     point.color = 0xbbbbbb;
+    point.active = false;
   }
 
   if (point.pending) {
@@ -262,5 +320,45 @@ function colorPoint(point, alive, color) {
     asset.tint = (r << 16) | (g << 8) | b;
   } else {
     asset.tint = point.color;
+  }
+}
+
+function updateScore() {
+  const colorCounts = {};
+
+  for (let i = 0; i < rows; i++) {
+    for (let j = 0; j < cols; j++) {
+      const point = points[i][j];
+
+      if (point.active) {
+        if (colorCounts[point.colorId]) {
+          colorCounts[point.colorId] += 1;
+        } else {
+          colorCounts[point.colorId] = 1;
+        }
+      }
+    }
+  }
+
+  const colorCountsArray = [];
+  for (const color in colorCounts) {
+    if (colorCounts.hasOwnProperty(color)) {
+      colorCountsArray.push([color, colorCounts[color]]);
+    }
+  }
+
+  colorCountsArray.sort((a, b) => b[1] - a[1]);
+
+  for (let i = 0; i < 5; i++) {
+    scoreElements[i].textContent = "";
+  }
+
+  for (let i = 0; i < Math.min(5, colorCountsArray.length); i++) {
+    const element = colorCountsArray[i];
+    console.log(element);
+
+    scoreElements[i].textContent = colorLabel[element[0]] + ": " + element[1];
+    scoreElements[i].className =
+      "font-semibold text-sm " + colorTailwind[element[0]];
   }
 }

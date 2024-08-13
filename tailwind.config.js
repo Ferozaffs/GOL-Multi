@@ -5,6 +5,7 @@ module.exports = {
     extend: {
       gridTemplateColumns: {
         16: "repeat(16, minmax(0, 1fr))",
+        36: "repeat(36, minmax(0, 1fr))",
       },
     },
     screens: {
