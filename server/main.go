@@ -2,11 +2,14 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -16,8 +19,8 @@ const isPvP = true
 const numColor = 16
 
 const (
-	surfaceWidth  = 128
-	surfaceHeight = 128
+	surfaceWidth  = 256
+	surfaceHeight = 256
 )
 
 type Point struct {
@@ -49,6 +52,17 @@ type Client struct {
 	ColorId    int
 }
 
+var (
+	currentColorId int
+	conMutex       sync.Mutex
+	connections    []Client
+)
+
+var (
+	gsMutex   sync.Mutex
+	gameState = make([]Point, surfaceWidth*surfaceHeight)
+)
+
 var offsets = []Coord{
 	{x: -1, y: -1},
 	{x: 0, y: -1},
@@ -59,11 +73,6 @@ var offsets = []Coord{
 	{x: 0, y: 1},
 	{x: 1, y: 1},
 }
-
-var gameState = make([]Point, surfaceWidth*surfaceHeight)
-
-var connections = []Client{}
-var currentColorId = 0
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -82,6 +91,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	defer conn.Close()
 
 	colorId := currentColorId
+	conMutex.Lock()
 	connections = append(connections, Client{conn, colorId})
 
 	if isPvP {
@@ -90,6 +100,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			currentColorId = 1
 		}
 	}
+	conMutex.Unlock()
 
 	buf, err := getFullSyncBuffer()
 	if err != nil {
@@ -135,6 +146,7 @@ func setJSONPoints(colorId int, data interface{}) {
 	points, ok := data.([]interface{})
 
 	if ok {
+		gsMutex.Lock()
 		for _, p := range points {
 			pointMap, ok := p.(map[string]interface{})
 			if ok {
@@ -146,7 +158,25 @@ func setJSONPoints(colorId int, data interface{}) {
 				gameState[idx].ColorId = colorId
 			}
 		}
+		gsMutex.Unlock()
 	}
+}
+
+func compressBuffer(input *bytes.Buffer) (*bytes.Buffer, error) {
+	var compressedBuffer bytes.Buffer
+	gzipWriter := gzip.NewWriter(&compressedBuffer)
+
+	_, err := io.Copy(gzipWriter, input)
+	if err != nil {
+		return nil, err
+	}
+
+	err = gzipWriter.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return &compressedBuffer, nil
 }
 
 func pointArrayToPackedUint(array []Point) []uint8 {
@@ -162,8 +192,11 @@ func pointArrayToPackedUint(array []Point) []uint8 {
 	return packed
 }
 
-func getFullSyncBuffer() (bytes.Buffer, error) {
+func getFullSyncBuffer() (*bytes.Buffer, error) {
+	gsMutex.Lock()
 	packed := pointArrayToPackedUint(gameState)
+	gsMutex.Unlock()
+
 	var buf bytes.Buffer
 	msgType := uint8(0)
 	binary.Write(&buf, binary.LittleEndian, msgType)
@@ -172,11 +205,17 @@ func getFullSyncBuffer() (bytes.Buffer, error) {
 		err := binary.Write(&buf, binary.LittleEndian, value)
 		if err != nil {
 			fmt.Println("binary.Write failed:", err)
-			return buf, err
+			return nil, err
 		}
 	}
 
-	return buf, nil
+	compressedBuffer, err := compressBuffer(&buf)
+	if err != nil {
+		fmt.Println("Error compressing buffer:", err)
+		return nil, err
+	}
+
+	return compressedBuffer, nil
 }
 
 func sendFullSync() {
@@ -185,6 +224,7 @@ func sendFullSync() {
 		return
 	}
 
+	conMutex.Lock()
 	activeConnections := []Client{}
 	for _, c := range connections {
 		err := c.Connection.WriteMessage(websocket.BinaryMessage, buf.Bytes())
@@ -194,6 +234,7 @@ func sendFullSync() {
 	}
 
 	connections = activeConnections
+	conMutex.Unlock()
 
 	for i := range gameState {
 		gameState[i].Changed = false
@@ -236,27 +277,38 @@ func sendChanged() {
 	}
 
 	if numChanged != 0 {
+		compressedBuffer, err := compressBuffer(&buf)
+		if err != nil {
+			fmt.Println("Error compressing buffer:", err)
+			return
+		}
+
+		conMutex.Lock()
 		activeConnections := []Client{}
 		for _, c := range connections {
-			err := c.Connection.WriteMessage(websocket.BinaryMessage, buf.Bytes())
+			err := c.Connection.WriteMessage(websocket.BinaryMessage, compressedBuffer.Bytes())
 			if err == nil {
 				activeConnections = append(activeConnections, c)
 			}
 		}
 
 		connections = activeConnections
+		conMutex.Unlock()
 	}
 }
 
 func reset() {
+	gsMutex.Lock()
 	for i := range gameState {
 		gameState[i].Alive = false
 		gameState[i].Changed = true
 		gameState[i].ColorId = 0
 	}
+	gsMutex.Unlock()
 }
 
 func update() {
+	gsMutex.Lock()
 	var newState = make([]Point, surfaceWidth*surfaceHeight)
 	for i := 0; i < surfaceWidth; i++ {
 		for j := 0; j < surfaceHeight; j++ {
@@ -322,6 +374,7 @@ func update() {
 	}
 
 	copy(gameState, newState)
+	gsMutex.Unlock()
 
 	sendChanged()
 }

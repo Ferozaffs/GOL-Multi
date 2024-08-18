@@ -13,6 +13,7 @@ module.exports = {
       md: "940px",
       lg: "1440px",
       land: { raw: "(orientation: landscape)" },
+      port: { raw: "(orientation: portrait)" },
     },
   },
   plugins: [require("@tailwindcss/forms")],

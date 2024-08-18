@@ -30,13 +30,27 @@ export function connectToServer(rn, url) {
   };
 }
 
+function decompressData(data) {
+  try {
+    const array = new Uint8Array(data);
+    const decompressed = pako.ungzip(array);
+
+    return decompressed;
+  } catch (err) {
+    console.error("Error during decompression:", err);
+    return null;
+  }
+}
+
 function handleBuffer(buffer) {
-  const array = new Uint8Array(buffer);
-  const type = array[0];
-  if (type === 0) {
-    fullSync(array);
-  } else if (type === 1) {
-    sync(array);
+  const data = decompressData(buffer);
+  if (data !== null) {
+    const type = data[0];
+    if (type === 0) {
+      fullSync(data);
+    } else if (type === 1) {
+      sync(data);
+    }
   }
 }
 

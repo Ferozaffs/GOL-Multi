@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: always
     ports:
       - "5001:5500"
       - "5502:5502"

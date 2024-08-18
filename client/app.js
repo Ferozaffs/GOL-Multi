@@ -14,8 +14,8 @@ let stampCooldown = 0.0;
 let cooldownElement;
 const updaterate = 1.0 / 1.0;
 
-const rows = 128;
-const cols = 128;
+const rows = 256;
+const cols = 256;
 const padding = 0;
 const points = new Array(rows);
 let color = [];
@@ -355,7 +355,6 @@ function updateScore() {
 
   for (let i = 0; i < Math.min(5, colorCountsArray.length); i++) {
     const element = colorCountsArray[i];
-    console.log(element);
 
     scoreElements[i].textContent = colorLabel[element[0]] + ": " + element[1];
     scoreElements[i].className =

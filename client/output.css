@@ -750,20 +750,21 @@ select {
   display: grid;
 }
 
-.h-1\/3 {
-  height: 33.333333%;
-}
-
 .h-3 {
   height: 0.75rem;
 }
 
-.h-1 {
-  height: 0.25rem;
+.h-full {
+  height: 100%;
 }
 
-.h-2 {
-  height: 0.5rem;
+.h-\[40rem\] {
+  height: 40rem;
+}
+
+.max-h-fit {
+  max-height: -moz-fit-content;
+  max-height: fit-content;
 }
 
 .min-h-screen {
@@ -774,34 +775,8 @@ select {
   width: 0.75rem;
 }
 
-.w-1 {
-  width: 0.25rem;
-}
-
-.w-2 {
-  width: 0.5rem;
-}
-
-.w-full {
-  width: 100%;
-}
-
-.w-fit {
-  width: -moz-fit-content;
-  width: fit-content;
-}
-
-.w-1\/3 {
-  width: 33.333333%;
-}
-
 .w-1\/2 {
   width: 50%;
-}
-
-.min-w-fit {
-  min-width: -moz-fit-content;
-  min-width: fit-content;
 }
 
 .max-w-fit {
@@ -815,10 +790,6 @@ select {
 
 .grid-cols-16 {
   grid-template-columns: repeat(16, minmax(0, 1fr));
-}
-
-.grid-cols-36 {
-  grid-template-columns: repeat(36, minmax(0, 1fr));
 }
 
 .flex-row {
@@ -879,19 +850,14 @@ select {
   padding-bottom: 1.25rem;
 }
 
-.text-sm {
-  font-size: 0.875rem;
-  line-height: 1.25rem;
-}
-
 .text-lg {
   font-size: 1.125rem;
   line-height: 1.75rem;
 }
 
-.text-xl {
-  font-size: 1.25rem;
-  line-height: 1.75rem;
+.text-sm {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
 }
 
 .font-bold {
@@ -1020,11 +986,6 @@ select {
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
   }
-
-  .sm\:text-sm {
-    font-size: 0.875rem;
-    line-height: 1.25rem;
-  }
 }
 
 @media (min-width: 940px) {
@@ -1036,10 +997,6 @@ select {
     height: 40rem;
   }
 
-  .md\:h-2 {
-    height: 0.5rem;
-  }
-
   .md\:w-5 {
     width: 1.25rem;
   }
@@ -1048,18 +1005,9 @@ select {
     width: 40rem;
   }
 
-  .md\:w-2 {
-    width: 0.5rem;
-  }
-
   .md\:py-10 {
     padding-top: 2.5rem;
     padding-bottom: 2.5rem;
-  }
-
-  .md\:text-sm {
-    font-size: 0.875rem;
-    line-height: 1.25rem;
   }
 }
 
@@ -1071,16 +1019,19 @@ select {
   .lg\:w-\[50rem\] {
     width: 50rem;
   }
-
-  .lg\:text-xl {
-    font-size: 1.25rem;
-    line-height: 1.75rem;
-  }
 }
 
 @media (orientation: landscape) {
   .land\:flex {
     display: flex;
+  }
+
+  .land\:h-1\/3 {
+    height: 33.333333%;
+  }
+
+  .land\:w-full {
+    width: 100%;
   }
 
   .land\:flex-row {
@@ -1103,5 +1054,11 @@ select {
   .land\:py-0 {
     padding-top: 0px;
     padding-bottom: 0px;
+  }
+}
+
+@media (orientation: portrait) {
+  .port\:h-full {
+    height: 100%;
   }
 }

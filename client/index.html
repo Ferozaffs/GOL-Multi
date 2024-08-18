@@ -11,19 +11,19 @@
     <link rel="shortcut icon" href="assets/icon.png" type="image/x-icon">
     <script type="module" src="app.js"></script>
     <script type="module" src="connection.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pako@latest/dist/pako.min.js"></script>
 </head>
 
 <body class="flex flex-col items-center min-h-screen bg-gradient-to-t from-slate-700 to-slate-500">
     <div class="land:flex land:flex-row md:py-10 sm:py-2">
         <div id="view" class="lg:w-[50rem] lg:h-[50rem] md:w-[40rem] md:h-[40rem] sm:w-[25rem] sm:h-[25rem] border-double border-8 border-slate-800"></div>
         <div class="flex flex-row justify-between py-5 land:px-5 land:flex-col land:py-0">
-            <div id="score" class="flex flex-col bg-slate-700 h-1/3 w-1/2"></div>
+            <div id="score" class="bg-slate-700 max-h-fit w-1/2 land:w-full land:h-1/3"></div>
             <div class="flex flex-col land:flex-col-reverse">
                 <div id="scratchpad" class="flex-1 grid grid-cols-16 max-w-fit"></div>
                 <script src="scratchpad.js"></script>
                 <div id="cooldown" class="flex-2 text-lg sm:text-md text-red-500 font-bold"></div>
             </div>
-
         </div>
 
     </div>
