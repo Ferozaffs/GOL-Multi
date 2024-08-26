@@ -56,6 +56,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
 
+      checkbox.addEventListener("click", (e) => {
+        checkbox.checked = !checkbox.checked;
+      });
+
       checkboxes.push(checkbox);
     }
   }
