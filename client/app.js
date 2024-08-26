@@ -34,8 +34,10 @@ let scoreElements = [];
     stampCooldown = Math.max(0.0, stampCooldown - time.elapsedMS / 1000.0);
     if (stampCooldown > 0.0) {
       cooldownElement.textContent = "Cooldown: " + stampCooldown.toFixed(2);
+      cooldownElement.className = "text-lg sm:text-md text-red-500 font-bold";
     } else {
-      cooldownElement.textContent = "";
+      cooldownElement.textContent = "Ready!";
+      cooldownElement.className = "text-lg sm:text-md text-green-600 font-bold";
     }
 
     tickCounter += time.elapsedMS / 1000.0;
@@ -47,7 +49,7 @@ let scoreElements = [];
 
 async function init() {
   await app.init({
-    background: 0xaaaaaa,
+    background: 0xbbbbbb,
     antialias: false,
     autoDensity: false,
   });
@@ -55,6 +57,12 @@ async function init() {
   view = document.querySelector("#view");
   view.appendChild(app.canvas);
   app.resizeTo = view;
+
+  let asset = PIXI.Sprite.from(PIXI.Texture.WHITE);
+  asset.width = view.getBoundingClientRect().width;
+  asset.height = view.getBoundingClientRect().height;
+  asset.tint = 0xbbbbbb;
+  app.stage.addChild(asset);
 
   for (let i = 0; i < rows; i++) {
     points[i] = new Array(cols);
@@ -71,6 +79,7 @@ async function init() {
       point.asset.width = 1;
       point.asset.height = 1;
       point.asset.tint = 0xbbbbbb;
+      point.asset.visible = false;
 
       app.stage.addChild(point.asset);
 
@@ -270,32 +279,36 @@ function sendData() {
 }
 
 export function sync(array) {
-  for (let i = 1; i < array.length; i += 3) {
-    const point = points[array[i]][array[i + 1]];
-    const alive = array[i + 2] & 0x1;
-    const colorId = array[i + 2] >> 1;
+  if (initialized) {
+    for (let i = 1; i < array.length; i += 3) {
+      const point = points[array[i]][array[i + 1]];
+      const alive = array[i + 2] & 0x1;
+      const colorId = array[i + 2] >> 1;
 
-    point.colorId = colorId;
-    colorPoint(point, alive);
+      point.colorId = colorId;
+      colorPoint(point, alive);
+    }
+
+    updateScore();
   }
-
-  updateScore();
 }
 
 export function fullSync(array) {
-  let idx = 0;
-  for (let i = 1; i < array.length; i++) {
-    const alive = array[i] & 0x1;
-    const colorId = array[i] >> 1;
+  if (initialized) {
+    let idx = 0;
+    for (let i = 1; i < array.length; i++) {
+      const alive = array[i] & 0x1;
+      const colorId = array[i] >> 1;
 
-    const point = points[Math.floor(idx / rows)][idx % cols];
-    point.colorId = colorId;
-    colorPoint(point, alive);
+      const point = points[Math.floor(idx / rows)][idx % cols];
+      point.colorId = colorId;
+      colorPoint(point, alive);
 
-    idx++;
+      idx++;
+    }
+
+    updateScore();
   }
-
-  updateScore();
 }
 
 function colorPoint(point, alive) {
@@ -303,9 +316,11 @@ function colorPoint(point, alive) {
   if (alive > 0) {
     point.color = color[point.colorId];
     point.active = true;
+    point.asset.visible = true;
   } else {
     point.color = 0xbbbbbb;
     point.active = false;
+    point.asset.visible = false;
   }
 
   if (point.pending) {
