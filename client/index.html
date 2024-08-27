@@ -15,7 +15,8 @@
 </head>
 
 <body class="flex flex-col items-center min-h-screen bg-gradient-to-t from-slate-700 to-slate-500">
-    <div class="land:flex land:flex-row md:py-10 sm:py-2">
+    <div id="roundTimer" class="items-center justify-center md:py-10 sm:py-2">120.00</div>
+    <div class="land:flex land:flex-row">
         <div id="view" class="lg:w-[50rem] lg:h-[50rem] md:w-[40rem] md:h-[40rem] sm:w-[25rem] sm:h-[25rem] border-double border-8 border-slate-800"></div>
         <div class="flex flex-row justify-between py-5 land:px-5 land:flex-col land:py-0">
             <div id="score" class="bg-slate-700 max-h-fit w-1/2 land:w-full land:h-1/3"></div>
@@ -26,6 +27,7 @@
                     <button id="clear" type="button" class="w-1/4 me-2 px-4 py-1 text-xs text-gray-300 bg-gray-800 hover:bg-gray-900 font-medium rounded-lg flex items-center justify-center">Clear</button>
                     <button id="save" type="button" class="w-1/4 me-2 px-4 py-1 text-xs text-gray-300 bg-gray-800 hover:bg-gray-900 font-medium rounded-lg flex items-center justify-center">Save</button>
                     <select id="saves" class="form-select w-1/3 me-2 h-6 text-gray-300 bg-gray-800 rounded-lg"></select>
+                    <button id="delete" type="button" class="w-fit me-2 px-3 py-1 text-xs text-gray-300 bg-red-900 hover:bg-red-800 font-medium rounded-lg flex items-center justify-center">X</button>
                 </div>
                 <script src="scratchpad.js" type="module"></script>
               </div>

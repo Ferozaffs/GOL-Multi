@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 
 const isPvP = true
 const numColor = 16
+const resetTime = 120.0
 
 const (
 	surfaceWidth  = 256
@@ -82,6 +84,8 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+var lastReset = time.Now()
+
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -113,7 +117,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 	conn.WriteMessage(websocket.BinaryMessage, buf.Bytes())
 
-	// Rate limit: 500 ms
+	var rateLimit = 2000
 	var lastProcessedTime time.Time
 
 	for {
@@ -125,18 +129,26 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		now := time.Now()
 
-		if now.Sub(lastProcessedTime) >= 500*time.Millisecond {
+		if now.Sub(lastProcessedTime) >= time.Duration(rateLimit)*time.Millisecond {
 			lastProcessedTime = now
 
 			var msg ClientMessage
 			err = json.Unmarshal(message, &msg)
 			if err != nil {
 				log.Printf("Error unmarshalling JSON: %v", err)
+				log.Printf("MsgType: %v", msg.Type)
+				log.Printf("MsgData: %v", msg.Data)
 				continue
 			}
 
 			if msg.Type == "points" {
 				setJSONPoints(colorId, msg.Data)
+
+				err = conn.WriteMessage(websocket.TextMessage, []byte("recieved "+strconv.Itoa(rateLimit/1000)))
+				if err != nil {
+					fmt.Println("Error writing:", err)
+					return
+				}
 			}
 		}
 	}
@@ -239,6 +251,15 @@ func sendFullSync() {
 	for i := range gameState {
 		gameState[i].Changed = false
 	}
+
+	remainingRoundTime := resetTime - (time.Since(lastReset).Seconds())
+	timestring := strconv.FormatFloat(remainingRoundTime, 'f', 1, 64)
+	for _, c := range connections {
+		err := c.Connection.WriteMessage(websocket.TextMessage, []byte("time "+timestring))
+		if err != nil {
+			fmt.Println("Error writing:", err)
+		}
+	}
 }
 
 func sendChanged() {
@@ -305,6 +326,8 @@ func reset() {
 		gameState[i].ColorId = 0
 	}
 	gsMutex.Unlock()
+
+	lastReset = time.Now()
 }
 
 func update() {
@@ -388,7 +411,7 @@ func main() {
 
 	updateTick := time.NewTicker(50 * time.Millisecond)
 	syncTick := time.NewTicker(10 * time.Second)
-	resetTick := time.NewTicker(120 * time.Second)
+	resetTick := time.NewTicker(resetTime * time.Second)
 	go func() {
 		for {
 			select {

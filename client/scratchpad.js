@@ -75,8 +75,13 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   savesSelect = document.getElementById("saves");
-  savesSelect.addEventListener("click", function () {
+  savesSelect.addEventListener("change", function () {
     loadSave();
+  });
+
+  const deleteBtn = document.getElementById("delete");
+  deleteBtn.addEventListener("click", function () {
+    deleteSave();
   });
 
   loadScratchPad("scratchpad");
@@ -117,7 +122,10 @@ function loadScratchPad(key) {
 
 function loadSave() {
   if (savesSelect.selectedIndex !== -1) {
-    loadScratchPad("scratchpad_" + savesSelect.selectedIndex);
+    savesSelect.options[savesSelect.selectedIndex].selected = true;
+    loadScratchPad(
+      "scratchpad_" + savesSelect.options[savesSelect.selectedIndex].value
+    );
   }
 }
 
@@ -135,6 +143,12 @@ function loadSaves() {
     savesSelect.appendChild(opt);
 
     i++;
+  }
+}
+
+function deleteSave() {
+  if (savesSelect.selectedIndex !== -1) {
+    savesSelect.remove(savesSelect.selectedIndex);
   }
 }
 

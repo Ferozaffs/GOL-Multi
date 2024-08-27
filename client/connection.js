@@ -1,4 +1,4 @@
-import { fullSync, sync } from "./app.js";
+import { fullSync, sync, setCooldown, setRoundTime } from "./app.js";
 
 let socket;
 let pingInterval;
@@ -24,6 +24,10 @@ export function connectToServer(rn, url) {
   socket.onmessage = function (event) {
     if (event.data instanceof ArrayBuffer) {
       handleBuffer(event.data);
+    } else if (event.data.includes("recieved")) {
+      setCooldown(event.data.split("recieved")[1]);
+    } else if (event.data.includes("time")) {
+      setRoundTime(event.data.split("time")[1]);
     } else if (event.data !== "pong") {
       console.log(event.data);
     }

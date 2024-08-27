@@ -11,7 +11,7 @@ let width = 0;
 let currentSize = 1.0;
 let previousPoint = undefined;
 let stampCooldown = 0.0;
-let cooldownElement;
+let roundTime = 120.0;
 const updaterate = 1.0 / 1.0;
 
 const rows = 256;
@@ -22,6 +22,8 @@ let color = [];
 let colorLabel = [];
 let colorTailwind = [];
 let scoreElements = [];
+let cooldownElement;
+let roundTimerElement;
 
 (async () => {
   await init();
@@ -38,6 +40,16 @@ let scoreElements = [];
     } else {
       cooldownElement.textContent = "Ready!";
       cooldownElement.className = "text-lg sm:text-md text-green-600 font-bold";
+    }
+
+    roundTime = Math.max(0.0, roundTime - time.elapsedMS / 1000.0);
+    roundTimerElement.textContent = roundTime.toFixed(2);
+    if (roundTime > 15.0) {
+      roundTimerElement.className =
+        "flex items-center justify-center text-xl sm:text-lg text-gray-800 font-bold";
+    } else {
+      roundTimerElement.className =
+        "flex items-center justify-center text-xl sm:text-lg text-red-500 font-bold";
     }
 
     tickCounter += time.elapsedMS / 1000.0;
@@ -95,6 +107,7 @@ async function init() {
   generateColors();
 
   cooldownElement = document.getElementById("cooldown");
+  roundTimerElement = document.getElementById("roundTimer");
 
   const container = document.getElementById("score");
   for (let i = 0; i <= 5; i++) {
@@ -234,8 +247,6 @@ function stamp(e) {
         point.pending = true;
       }
     });
-
-    stampCooldown = 2.0;
   }
 }
 
@@ -375,4 +386,12 @@ function updateScore() {
     scoreElements[i].className =
       "font-semibold text-sm " + colorTailwind[element[0]];
   }
+}
+
+export function setCooldown(cooldown) {
+  stampCooldown = cooldown;
+}
+
+export function setRoundTime(time) {
+  roundTime = time;
 }
