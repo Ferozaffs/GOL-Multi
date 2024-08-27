@@ -20,20 +20,28 @@ document.addEventListener("DOMContentLoaded", () => {
     saveScratchPad("scratchpad");
   });
 
-  container.addEventListener("touchmove", (e) => {
-    var touch = e.touches[0];
+  container.addEventListener(
+    "touchmove",
+    (e) => {
+      var touch = e.touches[0];
 
-    var checkbox = document.elementFromPoint(touch.clientX, touch.clientY);
+      var checkbox = document.elementFromPoint(touch.clientX, touch.clientY);
 
-    if (checkbox) {
-      if (paint === undefined) {
-        checkbox.checked = !checkbox.checked;
-        paint = checkbox.checked ? true : false;
-      } else if ((!checkbox.checked && paint) || (checkbox.checked && !paint)) {
-        checkbox.checked = !checkbox.checked;
+      if (checkbox) {
+        if (paint === undefined) {
+          checkbox.checked = !checkbox.checked;
+          paint = checkbox.checked ? true : false;
+        } else if (
+          (!checkbox.checked && paint) ||
+          (checkbox.checked && !paint)
+        ) {
+          checkbox.checked = !checkbox.checked;
+        }
       }
-    }
-  });
+      e.preventDefault();
+    },
+    { passive: false }
+  );
 
   for (let i = 0; i < 16; i++) {
     for (let j = 0; j < 16; j++) {
@@ -149,6 +157,15 @@ function loadSaves() {
 function deleteSave() {
   if (savesSelect.selectedIndex !== -1) {
     savesSelect.remove(savesSelect.selectedIndex);
+
+    let options = savesSelect.options;
+    for (let i = savesSelect.selectedIndex; i < options.length; i++) {
+      loadScratchPad("scratchpad_" + options[i].value);
+      localStorage.removeItem("scratchpad_" + options[i].value);
+      options[i].value = i;
+      options[i].text = i;
+      saveScratchPad("scratchpad_" + i);
+    }
   }
 }
 

@@ -136,8 +136,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			err = json.Unmarshal(message, &msg)
 			if err != nil {
 				log.Printf("Error unmarshalling JSON: %v", err)
-				log.Printf("MsgType: %v", msg.Type)
-				log.Printf("MsgData: %v", msg.Data)
+				log.Printf("Msg: %v", message)
 				continue
 			}
 
