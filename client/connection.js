@@ -1,4 +1,4 @@
-import { fullSync, sync, setCooldown, setRoundTime } from "./app.js";
+import { fullSync, sync, setCooldown, setRoundTime, setWinner } from "./app.js";
 
 let socket;
 let pingInterval;
@@ -28,6 +28,8 @@ export function connectToServer(rn, url) {
       setCooldown(event.data.split("recieved")[1]);
     } else if (event.data.includes("time")) {
       setRoundTime(event.data.split("time")[1]);
+    } else if (event.data.includes("score")) {
+      setWinner(event.data.split("score")[1]);
     } else if (event.data !== "pong") {
       console.log(event.data);
     }

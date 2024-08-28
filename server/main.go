@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
 	"sync"
@@ -18,7 +19,8 @@ import (
 
 const isPvP = true
 const numColor = 16
-const resetTime = 120.0
+const roundTime = 120.0
+const scoreTime = 10.0
 
 const (
 	surfaceWidth  = 256
@@ -85,6 +87,7 @@ var upgrader = websocket.Upgrader{
 }
 
 var lastReset = time.Now()
+var pause = true
 
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -251,7 +254,7 @@ func sendFullSync() {
 		gameState[i].Changed = false
 	}
 
-	remainingRoundTime := resetTime - (time.Since(lastReset).Seconds())
+	remainingRoundTime := roundTime - (time.Since(lastReset).Seconds())
 	timestring := strconv.FormatFloat(remainingRoundTime, 'f', 1, 64)
 	for _, c := range connections {
 		err := c.Connection.WriteMessage(websocket.TextMessage, []byte("time "+timestring))
@@ -317,7 +320,18 @@ func sendChanged() {
 	}
 }
 
+func startSession() {
+	reset()
+
+	roundTick := time.NewTicker(roundTime * time.Second)
+	go func() {
+		<-roundTick.C
+		scoreRound()
+	}()
+}
+
 func reset() {
+	pause = false
 	gsMutex.Lock()
 	for i := range gameState {
 		gameState[i].Alive = false
@@ -327,78 +341,127 @@ func reset() {
 	gsMutex.Unlock()
 
 	lastReset = time.Now()
+
+	sendFullSync()
 }
 
-func update() {
-	gsMutex.Lock()
-	var newState = make([]Point, surfaceWidth*surfaceHeight)
+func scoreRound() {
+
+	pause = true
+	score := calcScore()
+
+	for _, c := range connections {
+		err := c.Connection.WriteMessage(websocket.TextMessage, []byte("score "+strconv.Itoa(score)))
+		if err != nil {
+			fmt.Println("Error writing:", err)
+		}
+	}
+
+	scoreTick := time.NewTicker(scoreTime * time.Second)
+	go func() {
+		<-scoreTick.C
+		startSession()
+	}()
+}
+
+func calcScore() int {
+
+	colors := make(map[int]int)
 	for i := 0; i < surfaceWidth; i++ {
 		for j := 0; j < surfaceHeight; j++ {
 			idx := (j*surfaceWidth + i)
 			alive := gameState[idx].Alive
-			neighbors := 0
-			neighborIds := make(map[int]int)
-
-			for _, c := range offsets {
-				nx := i + c.x
-				if nx < 0 {
-					nx += surfaceWidth
-				} else if nx >= surfaceWidth {
-					nx -= surfaceWidth
-				}
-
-				ny := j + c.y
-				if ny < 0 {
-					ny += surfaceHeight
-				} else if ny >= surfaceHeight {
-					ny -= surfaceHeight
-				}
-
-				if gameState[(ny*surfaceWidth + nx)].Alive {
-					neighbors++
-					neighborIds[gameState[(ny*surfaceWidth+nx)].ColorId]++
-				}
-			}
-
-			changed := gameState[idx].Changed
-			colorId := gameState[idx].ColorId
 			if alive {
-				if neighbors < 2 || neighbors > 3 {
-					alive = false
-					changed = true
-					colorId = 0
-				}
-			} else {
-				if neighbors == 3 {
-					alive = true
-					changed = true
-
-					var maxCount int
-					var maxIDs []int
-
-					for id, count := range neighborIds {
-						if count > maxCount {
-							maxCount = count
-							maxIDs = []int{id}
-						} else if count == maxCount {
-							maxIDs = append(maxIDs, id)
-						}
-					}
-
-					if len(maxIDs) == 1 {
-						colorId = maxIDs[0]
-					}
-				}
+				colors[gameState[idx].ColorId]++
 			}
-
-			newState[idx] = Point{alive, changed, j, i, colorId}
 		}
 	}
 
-	copy(gameState, newState)
-	gsMutex.Unlock()
+	largestVal := math.MinInt
+	winner := 0
 
-	sendChanged()
+	for id, value := range colors {
+		if value > largestVal {
+			largestVal = value
+			winner = id
+		}
+	}
+
+	return winner
+}
+
+func update() {
+	if !pause {
+		gsMutex.Lock()
+		var newState = make([]Point, surfaceWidth*surfaceHeight)
+		for i := 0; i < surfaceWidth; i++ {
+			for j := 0; j < surfaceHeight; j++ {
+				idx := (j*surfaceWidth + i)
+				alive := gameState[idx].Alive
+				neighbors := 0
+				neighborIds := make(map[int]int)
+
+				for _, c := range offsets {
+					nx := i + c.x
+					if nx < 0 {
+						nx += surfaceWidth
+					} else if nx >= surfaceWidth {
+						nx -= surfaceWidth
+					}
+
+					ny := j + c.y
+					if ny < 0 {
+						ny += surfaceHeight
+					} else if ny >= surfaceHeight {
+						ny -= surfaceHeight
+					}
+
+					if gameState[(ny*surfaceWidth + nx)].Alive {
+						neighbors++
+						neighborIds[gameState[(ny*surfaceWidth+nx)].ColorId]++
+					}
+				}
+
+				changed := gameState[idx].Changed
+				colorId := gameState[idx].ColorId
+				if alive {
+					if neighbors < 2 || neighbors > 3 {
+						alive = false
+						changed = true
+						colorId = 0
+					}
+				} else {
+					if neighbors == 3 {
+						alive = true
+						changed = true
+
+						var maxCount int
+						var maxIDs []int
+
+						for id, count := range neighborIds {
+							if count > maxCount {
+								maxCount = count
+								maxIDs = []int{id}
+							} else if count == maxCount {
+								maxIDs = append(maxIDs, id)
+							}
+						}
+
+						if len(maxIDs) == 1 {
+							colorId = maxIDs[0]
+						}
+					}
+				}
+
+				newState[idx] = Point{alive, changed, j, i, colorId}
+			}
+		}
+
+		copy(gameState, newState)
+		gsMutex.Unlock()
+
+		sendChanged()
+	}
 }
 
 func main() {
@@ -406,11 +469,10 @@ func main() {
 		currentColorId = 1
 	}
 	//Full sync routine
-	reset()
+	startSession()
 
 	updateTick := time.NewTicker(50 * time.Millisecond)
 	syncTick := time.NewTicker(10 * time.Second)
-	resetTick := time.NewTicker(resetTime * time.Second)
 	go func() {
 		for {
 			select {
@@ -418,8 +480,6 @@ func main() {
 				update()
 			case <-syncTick.C:
 				sendFullSync()
-			case <-resetTick.C:
-				reset()
 			}
 		}
 	}()

@@ -786,8 +786,24 @@ select {
   visibility: visible;
 }
 
+.absolute {
+  position: absolute;
+}
+
+.left-0 {
+  left: 0px;
+}
+
+.top-1\/4 {
+  top: 25%;
+}
+
 .me-2 {
   margin-inline-end: 0.5rem;
+}
+
+.block {
+  display: block;
 }
 
 .flex {
@@ -834,6 +850,10 @@ select {
 .w-fit {
   width: -moz-fit-content;
   width: fit-content;
+}
+
+.w-full {
+  width: 100%;
 }
 
 .max-w-fit {
@@ -916,6 +936,11 @@ select {
   --tw-gradient-to: #64748b var(--tw-gradient-to-position);
 }
 
+.px-3 {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
 .px-4 {
   padding-left: 1rem;
   padding-right: 1rem;
@@ -936,9 +961,13 @@ select {
   padding-bottom: 1.25rem;
 }
 
-.px-3 {
-  padding-left: 0.75rem;
-  padding-right: 0.75rem;
+.text-center {
+  text-align: center;
+}
+
+.text-9xl {
+  font-size: 8rem;
+  line-height: 1;
 }
 
 .text-lg {
@@ -1190,5 +1219,22 @@ select {
   .land\:py-0 {
     padding-top: 0px;
     padding-bottom: 0px;
+  }
+}
+
+@media (orientation: portrait) {
+  .port\:px-5 {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+
+  .port\:text-5xl {
+    font-size: 3rem;
+    line-height: 1;
+  }
+
+  .port\:text-4xl {
+    font-size: 2.25rem;
+    line-height: 2.5rem;
   }
 }

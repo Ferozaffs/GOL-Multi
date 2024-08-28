@@ -24,6 +24,8 @@ let colorTailwind = [];
 let scoreElements = [];
 let cooldownElement;
 let roundTimerElement;
+let winnerTextElement;
+let winnerTextTimer = 0.0;
 
 (async () => {
   await init();
@@ -36,10 +38,12 @@ let roundTimerElement;
     stampCooldown = Math.max(0.0, stampCooldown - time.elapsedMS / 1000.0);
     if (stampCooldown > 0.0) {
       cooldownElement.textContent = "Cooldown: " + stampCooldown.toFixed(2);
-      cooldownElement.className = "text-lg sm:text-md text-red-500 font-bold";
+      cooldownElement.className =
+        "text-lg sm:text-md text-red-500 font-bold port:px-5";
     } else {
       cooldownElement.textContent = "Ready!";
-      cooldownElement.className = "text-lg sm:text-md text-green-600 font-bold";
+      cooldownElement.className =
+        "text-lg sm:text-md text-green-600 font-bold port:px-5";
     }
 
     roundTime = Math.max(0.0, roundTime - time.elapsedMS / 1000.0);
@@ -50,6 +54,13 @@ let roundTimerElement;
     } else {
       roundTimerElement.className =
         "flex items-center justify-center text-xl sm:text-lg text-red-500 font-bold";
+    }
+
+    winnerTextTimer = Math.max(0.0, winnerTextTimer - time.elapsedMS / 1000.0);
+    if (Math.floor(winnerTextTimer) % 2 == 1) {
+      winnerTextElement.style.display = "block";
+    } else {
+      winnerTextElement.style.display = "none";
     }
 
     tickCounter += time.elapsedMS / 1000.0;
@@ -108,6 +119,7 @@ async function init() {
 
   cooldownElement = document.getElementById("cooldown");
   roundTimerElement = document.getElementById("roundTimer");
+  winnerTextElement = document.getElementById("winnerText");
 
   const container = document.getElementById("score");
   for (let i = 0; i <= 5; i++) {
@@ -394,4 +406,12 @@ export function setCooldown(cooldown) {
 
 export function setRoundTime(time) {
   roundTime = time;
+}
+
+export function setWinner(id) {
+  winnerTextTimer = 10.0;
+  winnerTextElement.textContent = "WINNER IS " + colorLabel[Number(id)] + "!";
+  winnerTextElement.className =
+    "absolute top-1/4 left-0 text-center text-9xl port:text-4xl font-bold w-full " +
+    colorTailwind[Number(id)];
 }
