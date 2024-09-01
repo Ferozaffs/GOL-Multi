@@ -248,7 +248,6 @@ func sendFullSync() {
 	}
 
 	connections = activeConnections
-	conMutex.Unlock()
 
 	for i := range gameState {
 		gameState[i].Changed = false
@@ -262,6 +261,8 @@ func sendFullSync() {
 			fmt.Println("Error writing:", err)
 		}
 	}
+
+	conMutex.Unlock()
 }
 
 func sendChanged() {
@@ -350,12 +351,14 @@ func scoreRound() {
 	pause = true
 	score := calcScore()
 
+	conMutex.Lock()
 	for _, c := range connections {
 		err := c.Connection.WriteMessage(websocket.TextMessage, []byte("score "+strconv.Itoa(score)))
 		if err != nil {
 			fmt.Println("Error writing:", err)
 		}
 	}
+	conMutex.Unlock()
 
 	scoreTick := time.NewTicker(scoreTime * time.Second)
 	go func() {
